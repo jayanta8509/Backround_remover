@@ -110,22 +110,19 @@ async def remove_background(request: ImageRequest):
         rgba = np.zeros((orig_im.shape[0], orig_im.shape[1], 4), dtype=np.uint8)
         rgba[:,:,:3] = orig_im
         rgba[:,:,3] = mask * 255
-        
-        # Generate unique filename
-        filename = f"{uuid.uuid4()}.png"
-        filepath = os.path.join("static/images", filename)
-        
-        # Save image
-        Image.fromarray(rgba).save(filepath)
-        
-        # Create image URL
-        image_url = f"/static/images/{filename}"
+
+
+        # Convert to PIL image and then to base64
+        pil_image = Image.fromarray(rgba)
+        buffered = BytesIO()
+        pil_image.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode()
         
         # Return JSON response
         return JSONResponse(
             content={
                 "status_code": 200,
-                "image_url": image_url
+                "image_base64": img_str
             }
         )
     except Exception as e:
