@@ -3,6 +3,8 @@ env
 code.txt
 test.py
 static
+.env
+
 
 # gunicorn server:app --bind 0.0.0.0:8000 --timeout 8000 --workers 3 --worker-class uvicorn.workers.UvicornWorker --daemon
 # gunicorn u2net_server:app --bind 0.0.0.0:8000 --timeout 8000 --workers 3 --worker-class uvicorn.workers.UvicornWorker --daemon

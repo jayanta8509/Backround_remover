@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 import http.client
@@ -8,6 +9,10 @@ from pydantic import BaseModel, HttpUrl
 from typing import Union
 import logging
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import json
+load_dotenv()
+photoroom_api_key = os.getenv("PHOTOROOM_API_KEY")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -70,7 +75,7 @@ Content-Disposition: form-data; name="despill"
         headers = {
             'Content-Type': f"multipart/form-data; boundary={boundary}",
             'Accept': "image/png, application/json",
-            'x-api-key': "sk_pr_default_c1bd2116df663523ea1b48cfe7c9915c337837cf"
+            'x-api-key': photoroom_api_key
         }
 
         # Make request to PhotoRoom API
@@ -80,6 +85,20 @@ Content-Disposition: form-data; name="despill"
         res = conn.getresponse()
         data = res.read()
         
+        # Check if the response is an error
+        if res.status != 200:
+            try:
+                error_data = json.loads(data.decode('utf-8'))
+                raise HTTPException(
+                    status_code=res.status,
+                    detail=error_data.get('detail', 'Unknown error from PhotoRoom API')
+                )
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=res.status,
+                    detail=f"Error from PhotoRoom API: {data.decode('utf-8')}"
+                )
+        
         # Convert the image data to base64
         img_str = base64.b64encode(data).decode('utf-8')
         
@@ -87,16 +106,18 @@ Content-Disposition: form-data; name="despill"
             "status_code": 200,
             "image_base64": img_str
         }
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error processing image: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
 
 @app.post("/api/upload-image")
-async def upload_image(image: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...)):
     try:
         # Read the uploaded image
-        image_content = await image.read()
-        return JSONResponse(content=await process_image(image_content, image.filename))
+        image_content = await file.read()
+        return JSONResponse(content=await process_image(image_content, file.filename))
     except Exception as e:
         logger.error(f"Error in upload_image: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
