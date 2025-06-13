@@ -115,9 +115,29 @@ Content-Disposition: form-data; name="despill"
 @app.post("/api/upload-image")
 async def upload_image(file: UploadFile = File(...)):
     try:
+        # Validate file
+        if not file:
+            raise HTTPException(status_code=400, detail="No file provided")
+        
+        # Validate file type
+        content_type = file.content_type
+        if not content_type or not content_type.startswith('image/'):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Expected image, got {content_type}"
+            )
+        
         # Read the uploaded image
         image_content = await file.read()
-        return JSONResponse(content=await process_image(image_content, file.filename))
+        if not image_content:
+            raise HTTPException(status_code=400, detail="Empty file provided")
+            
+        # Process the image
+        result = await process_image(image_content, file.filename)
+        return JSONResponse(content=result)
+        
+    except HTTPException as he:
+        raise he
     except Exception as e:
         logger.error(f"Error in upload_image: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
